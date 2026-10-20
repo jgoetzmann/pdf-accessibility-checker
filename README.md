@@ -37,7 +37,7 @@ To re-check everything, or to choose a different PAC build, run the workflow by 
 | Where | What |
 |---|---|
 | `reports/<file>_PAC_WCAG_Report.pdf` | PAC's own one-page WCAG report for `pdfs/<file>.pdf` |
-| `reports/summary.csv` | One row per report: result, title, language, tags, pages, size, then `passed` / `warned` / `failed` for each of PAC's 13 WCAG checkpoints and totals. Plain numbers, consistent columns, ready for a spreadsheet. A checkpoint a report does not list is blank, never zero |
+| `reports/summary.csv` | One row per report: result, title, language, tags, pages, size, then `passed` / `warned` / `failed` for each of PAC's 13 WCAG checkpoints and totals. Plain numbers, consistent columns, ready for a spreadsheet. PAC's `-` (nothing found at that checkpoint) is recorded as 0; a checkpoint a report does not list is blank |
 | The run page | A results table, and a list of any files that produced no report |
 | The run's artifact, `pac-run` | The reports again, the macro's log, calibration reports and screenshots of anything that went wrong. Kept for 7 days |
 
