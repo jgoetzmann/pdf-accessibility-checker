@@ -8,7 +8,7 @@ name: PAC check
 on:
   push:
     branches: [main]
-    paths: ['pdfs/**']
+    paths: ['pdfs/**', '!pdfs/README.md']
   workflow_dispatch:
     inputs:
       recheck_all:
@@ -52,13 +52,6 @@ jobs:
       COMMIT_REPORTS: ${{ (github.event_name == 'push' || inputs.commit_reports) && 'true' || 'false' }}
       MODE: ${{ inputs.mode || 'check' }}
     steps:
-      - name: Check that the PAC licence has been accepted
-        if: vars.ACCEPT_PAC_EULA != 'true'
-        shell: pwsh
-        run: |
-          Write-Host "::error::This workflow installs PAC, which is free but licensed by axes4. Read the licence at https://pac.pdf-accessibility.org/en/resources/general-terms/end-user-license-agreement and, if you accept it, set the repository variable ACCEPT_PAC_EULA to true (Settings > Secrets and variables > Actions > Variables). See README.md."
-          exit 1
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -78,6 +71,14 @@ jobs:
           Write-Host "$($files.Count) PDF(s) to check"; $files | ForEach-Object { Write-Host "  $_" }
           "count=$($files.Count)" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
           "list=$list" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
+      - name: Check that the PAC licence has been accepted
+        # after Find, so a run with nothing to check (such as a new copy's first commit) stays green
+        if: vars.ACCEPT_PAC_EULA != 'true' && (steps.select.outputs.count != '0' || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        run: |
+          Write-Host "::error::This workflow installs PAC, which is free but licensed by axes4. Read the licence at https://pac.pdf-accessibility.org/en/resources/general-terms/end-user-license-agreement and, if you accept it, set the repository variable ACCEPT_PAC_EULA to true (Settings > Secrets and variables > Actions > Variables). See README.md."
+          exit 1
 
       - name: Install PAC
         if: steps.select.outputs.count != '0' || github.event_name == 'workflow_dispatch'
