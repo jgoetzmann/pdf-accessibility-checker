@@ -1,0 +1,82 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /StructTreeRoot 7 0 R /MarkInfo << /Marked true >> /Lang (en-US) /ViewerPreferences << /DisplayDocTitle true >> /Metadata 10 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> /StructParents 0 /Tabs /S >>
+endobj
+4 0 obj
+<< /Length 316 >>
+stream
+/H1 <</MCID 0>> BDC
+BT
+/F1 20 Tf
+72 720 Td
+(Calibration sample) Tj
+ET
+EMC
+/P <</MCID 1>> BDC
+BT
+/F1 12 Tf
+72 690 Td
+(This document exists to check that PAC gives the same answer every time it runs.) Tj
+ET
+BT
+/F1 12 Tf
+72 672 Td
+(It was written by tools/make_samples.py and contains no third-party content.) Tj
+ET
+EMC
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Title (PAC calibration sample (tagged)) /Producer (tools/make_samples.py) >>
+endobj
+7 0 obj
+<< /Type /StructTreeRoot /K 8 0 R /ParentTree 11 0 R /ParentTreeNextKey 1 >>
+endobj
+8 0 obj
+<< /Type /StructElem /S /Document /P 7 0 R /K [9 0 R 12 0 R] >>
+endobj
+9 0 obj
+<< /Type /StructElem /S /H1 /P 8 0 R /Pg 3 0 R /K 0 >>
+endobj
+10 0 obj
+<< /Type /Metadata /Subtype /XML /Length 472 >>
+stream
+<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/"><dc:title><rdf:Alt><rdf:li xml:lang="x-default">PAC calibration sample (tagged)</rdf:li></rdf:Alt></dc:title><pdfuaid:part>1</pdfuaid:part></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>
+endstream
+endobj
+11 0 obj
+<< /Nums [0 [9 0 R 12 0 R]] >>
+endobj
+12 0 obj
+<< /Type /StructElem /S /P /P 8 0 R /Pg 3 0 R /K 1 >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000015 00000 n 
+0000000193 00000 n 
+0000000250 00000 n 
+0000000402 00000 n 
+0000000769 00000 n 
+0000000866 00000 n 
+0000000962 00000 n 
+0000001054 00000 n 
+0000001133 00000 n 
+0000001203 00000 n 
+0000001757 00000 n 
+0000001804 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R /Info 6 0 R /ID [<00112233445566778899aabbccddeeff> <00112233445566778899aabbccddeeff>] >>
+startxref
+1874
+%%EOF

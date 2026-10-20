@@ -1,0 +1,156 @@
+name: PAC check
+
+# Runs PAC 2026, axes4's free PDF Accessibility Checker, on the PDFs in pdfs/ and commits
+# PAC's WCAG report for each one to reports/, with a summary table on the run page.
+# Each run gets a fresh GitHub-hosted Windows machine, which is discarded afterwards.
+# Setup and caveats: README.md.
+
+on:
+  push:
+    branches: [main]
+    paths: ['pdfs/**']
+  workflow_dispatch:
+    inputs:
+      recheck_all:
+        description: Re-check every PDF, not only those without a report yet
+        type: boolean
+        default: false
+      pac_version:
+        description: PAC build
+        type: choice
+        options: ['26.1.0.0', '26.0.0.0']
+        default: '26.1.0.0'
+      calibrate:
+        description: First check this machine against the reference reports in calibration/
+        type: boolean
+        default: true
+      commit_reports:
+        description: Commit the reports to reports/ (they are always in the run's artifact too)
+        type: boolean
+        default: true
+      mode:
+        description: check, or probe to record PAC's interface when the macro needs fixing
+        type: choice
+        options: [check, probe]
+        default: check
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pac-check-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pac:
+    runs-on: windows-latest
+    timeout-minutes: 300
+    env:
+      PAC_VERSION: ${{ inputs.pac_version || '26.1.0.0' }}
+      RECHECK_ALL: ${{ inputs.recheck_all && 'true' || 'false' }}
+      CALIBRATE: ${{ (github.event_name == 'push' || inputs.calibrate) && 'true' || 'false' }}
+      COMMIT_REPORTS: ${{ (github.event_name == 'push' || inputs.commit_reports) && 'true' || 'false' }}
+      MODE: ${{ inputs.mode || 'check' }}
+    steps:
+      - name: Check that the PAC licence has been accepted
+        if: vars.ACCEPT_PAC_EULA != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::error::This workflow installs PAC, which is free but licensed by axes4. Read the licence at https://pac.pdf-accessibility.org/en/resources/general-terms/end-user-license-agreement and, if you accept it, set the repository variable ACCEPT_PAC_EULA to true (Settings > Secrets and variables > Actions > Variables). See README.md."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Find the PDFs to check
+        id: select
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pdfs, reports | Out-Null
+          $a = @('tools/pac_reports.py', 'select', 'pdfs', 'reports')
+          if ($env:RECHECK_ALL -eq 'true') { $a += '--all' }
+          $files = @(python @a)
+          $list = Join-Path $env:RUNNER_TEMP 'files.txt'
+          $files | Set-Content -Path $list -Encoding utf8
+          Write-Host "$($files.Count) PDF(s) to check"; $files | ForEach-Object { Write-Host "  $_" }
+          "count=$($files.Count)" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          "list=$list" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
+      - name: Install PAC
+        if: steps.select.outputs.count != '0' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: '& tools/install-pac.ps1 -Version $env:PAC_VERSION'
+
+      - name: Install pdftotext (xpdf), used to read the reports
+        if: steps.select.outputs.count != '0' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'xpdf'
+          $zip = Join-Path $env:RUNNER_TEMP 'xpdf.zip'
+          try {
+            Invoke-WebRequest 'https://dl.xpdfreader.com/xpdf-tools-win-4.06.zip' -OutFile $zip -UseBasicParsing
+            Expand-Archive $zip $dest -Force
+          } catch {
+            Write-Host "xpdfreader.com download failed ($_); using Chocolatey's xpdf-utils"
+            choco install xpdf-utils -y --no-progress
+            $dest = 'C:\ProgramData\chocolatey\lib\xpdf-utils'
+          }
+          $exe = Get-ChildItem $dest -Recurse -Filter pdftotext.exe |
+                 Sort-Object { $_.FullName -notlike '*bin64*' } | Select-Object -First 1
+          if (-not $exe) { throw 'pdftotext.exe not found' }
+          $exe.DirectoryName | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          & $exe.FullName -v 2>&1 | Select-Object -First 1
+          exit 0
+
+      - name: Probe PAC's interface
+        if: env.MODE == 'probe'
+        shell: pwsh
+        run: '& tools/pac-macro.ps1 -Mode probe -InputDir calibration -OutDir out/probe'
+
+      - name: Calibrate against the reference reports
+        if: env.MODE == 'check' && env.CALIBRATE == 'true' && (steps.select.outputs.count != '0' || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        run: |
+          & tools/pac-macro.ps1 -Mode check -InputDir calibration -OutDir out/calibration
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/pac_reports.py calibrate out/calibration "calibration/reference/$env:PAC_VERSION"
+          exit $LASTEXITCODE
+
+      - name: Check the PDFs
+        if: env.MODE == 'check' && steps.select.outputs.count != '0'
+        shell: pwsh
+        run: |
+          $files = @(Get-Content -Path '${{ steps.select.outputs.list }}' | Where-Object { $_ })
+          & tools/pac-macro.ps1 -Mode check -InputDir pdfs -Files $files -OutDir out/reports
+          $macro = $LASTEXITCODE
+          python tools/pac_reports.py validate pdfs out/reports $env:PAC_VERSION @files
+          $valid = $LASTEXITCODE
+          # keep whatever was made, even if some files failed
+          Get-ChildItem out/reports -Filter *_PAC_WCAG_Report.pdf | Copy-Item -Destination reports -Force
+          python tools/pac_reports.py summarize reports reports/summary.csv --status out/reports/status.csv --md $env:GITHUB_STEP_SUMMARY
+          if ($macro -or $valid) { exit 1 }
+
+      - name: Commit the reports
+        if: always() && env.MODE == 'check' && env.COMMIT_REPORTS == 'true' && steps.select.outputs.count != '0'
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add reports
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host 'No new reports to commit'; exit 0 }
+          git commit -m "PAC reports for $((git diff --cached --name-only -- 'reports/*.pdf').Count) file(s) [skip ci]"
+          git pull --rebase
+          git push
+
+      - name: Upload reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pac-run
+          path: out/
+          retention-days: 7
+          if-no-files-found: ignore
