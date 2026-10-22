@@ -12,6 +12,10 @@ installed on your computer, and the machine is discarded when the run ends.
 > Not affiliated with axes4. This repository does not contain PAC; every run downloads the
 > installer from axes4's own site and checks its SHA-256 before installing.
 
+**Using an AI agent such as Claude Code?** [`SOP.md`](SOP.md) is the step-by-step procedure
+for it, with prompts to type for each task: checking PDFs, reading results, fixing a failed
+run, adding a PAC build.
+
 ## Use it
 
 1. **Make your own copy.** Click **Use this template → Create a new repository**. Choose
@@ -58,7 +62,8 @@ To re-check everything, or to choose a different PAC build, run the workflow by 
   and every field and checkpoint count must match the reference reports made earlier on the
   same build. Otherwise the run stops before touching your files.
 - **Every report is validated.** It must name the file it checked, come from the chosen build
-  and contain PAC's full checkpoint table.
+  and contain PAC's full checkpoint table. A report that fails is kept out of `reports/` (it
+  stays in the run's artifact, under `rejected/`).
 - **Nothing is overwritten.** If a save would replace an existing file, the macro answers No
   and fails that file instead.
 - **It has been cross-checked.** The same scripts reproduced 34 PAC reports, made separately
@@ -77,7 +82,7 @@ title or alt text that describes the wrong picture passes.
 - **Actions minutes.** Public repositories get GitHub-hosted runners free. Private ones use
   your account's monthly Actions minutes, and Windows minutes count double: 34 PDFs plus
   setup took about 16 minutes, so roughly 30 minutes of allowance.
-- **One job runs at most 6 hours.** That is several hundred PDFs. Split bigger batches.
+- **One run lasts at most 5 hours.** That is several hundred PDFs. Split bigger batches.
 - **Files over 100 MB** cannot be committed to GitHub without Git LFS.
 - **Use it for your own documents.** GitHub's terms allow Actions for building and testing
   the project in the repository, and rule out using them to run a service for other people.
@@ -109,6 +114,7 @@ carries on and counts it in `summary.csv` (`pac_check_errors`).
 
 | File | What it does |
 |---|---|
+| `SOP.md` | The procedure, written for an AI agent, with prompts to type |
 | `.github/workflows/pac-check.yml` | The workflow |
 | `tools/install-pac.ps1` | Download, verify and silently install a pinned PAC build |
 | `tools/pac-macro.ps1` | Drive PAC through each PDF (`check`) or record its interface (`probe`) |

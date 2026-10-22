@@ -127,9 +127,10 @@ jobs:
           $files = @(Get-Content -Path '${{ steps.select.outputs.list }}' | Where-Object { $_ })
           & tools/pac-macro.ps1 -Mode check -InputDir pdfs -Files $files -OutDir out/reports
           $macro = $LASTEXITCODE
-          python tools/pac_reports.py validate pdfs out/reports $env:PAC_VERSION @files
+          # a report that fails validation is moved to out/rejected: in the artifact, not in reports/
+          python tools/pac_reports.py validate pdfs out/reports $env:PAC_VERSION --reject out/rejected @files
           $valid = $LASTEXITCODE
-          # keep whatever was made, even if some files failed
+          # keep every valid report, even if some files failed
           Get-ChildItem out/reports -Filter *_PAC_WCAG_Report.pdf | Copy-Item -Destination reports -Force
           python tools/pac_reports.py summarize reports reports/summary.csv --status out/reports/status.csv --md $env:GITHUB_STEP_SUMMARY
           if ($macro -or $valid) { exit 1 }

@@ -2,7 +2,7 @@
 
     python tools/pac_reports.py select <pdf-dir> <reports-dir> [--all]
     python tools/pac_reports.py calibrate <reports-dir> <reference-dir>
-    python tools/pac_reports.py validate <pdf-dir> <reports-dir> <pac-version> <file> ...
+    python tools/pac_reports.py validate <pdf-dir> <reports-dir> <pac-version> [--reject <dir>] <file> ...
     python tools/pac_reports.py summarize <reports-dir> <csv-out> [--status status.csv] [--md out.md]
 
 select     Print the PDFs in <pdf-dir> that have no report in <reports-dir> yet (all of them
@@ -11,7 +11,8 @@ calibrate  Compare the reports just made from calibration/*.pdf with the referen
            for the same PAC build. Every DOCUMENT field and every checkpoint count must match;
            only the date may differ. Exit 1 on any difference.
 validate   Every listed PDF must have a report that names it, on the expected PAC build, with
-           a full checkpoint table.
+           a full checkpoint table. With --reject, a report that fails is moved to <dir>, so
+           it is kept for inspection but never published as that file's result.
 summarize  One CSV row per report: metadata, then passed / warned / failed for every PAC
            checkpoint, then totals. Plain numbers, consistent column names. Optionally a
            Markdown table for the run page.
@@ -135,7 +136,7 @@ def cmd_calibrate(reports_dir, reference_dir):
     return 1 if bad else 0
 
 
-def cmd_validate(pdf_dir, reports_dir, version, files):
+def cmd_validate(pdf_dir, reports_dir, version, files, reject_dir=None):
     bad = 0
     for pdf in files:
         path = os.path.join(reports_dir, report_name(pdf))
@@ -150,6 +151,10 @@ def cmd_validate(pdf_dir, reports_dir, version, files):
                 problems.append('PAC %r, expected %s' % (rec.get('PAC version'), version))
             if len(rec['checkpoints']) != len(CHECKPOINTS):
                 problems.append('%d of %d checkpoints read' % (len(rec['checkpoints']), len(CHECKPOINTS)))
+        if problems and reject_dir and os.path.exists(path):
+            os.makedirs(reject_dir, exist_ok=True)
+            os.replace(path, os.path.join(reject_dir, os.path.basename(path)))
+            problems.append('moved to %s' % reject_dir)
         print('%-4s %s %s' % ('ok' if not problems else 'BAD', pdf, '; '.join(problems)))
         bad += bool(problems)
     print('validate: %d of %d reports pass' % (len(files) - bad, len(files)))
@@ -161,7 +166,13 @@ def cmd_summarize(reports_dir, csv_out, status_csv=None, md_out=None):
     if status_csv and os.path.exists(status_csv):
         for row in csv.DictReader(open(status_csv, encoding='utf-8-sig')):
             status[report_name(row['file'])] = row
-    cols = (['report', 'file', 'result', 'standard', 'pac_version', 'title', 'language', 'tags',
+    # PAC's error count is only known for the files checked in this run; keep the earlier
+    # summary's count for the rest, so it survives the next run
+    earlier = {}
+    if os.path.exists(csv_out):
+        for row in csv.DictReader(open(csv_out, encoding='utf-8')):
+            earlier[row.get('report')] = row.get('pac_check_errors', '')
+    cols =(['report', 'file', 'result', 'standard', 'pac_version', 'title', 'language', 'tags',
              'pages', 'size']
             + ['%s_%s' % (c.replace('.', '_'), k) for c in CHECKPOINTS for k in ('passed', 'warned', 'failed')]
             + ['passed_total', 'warned_total', 'failed_total', 'pac_check_errors'])
@@ -179,7 +190,10 @@ def cmd_summarize(reports_dir, csv_out, status_csv=None, md_out=None):
                 row['%s_%s' % (c.replace('.', '_'), k)] = cps[c][k] if c in cps else ''
         for k in ('passed', 'warned', 'failed'):
             row['%s_total' % k] = sum(v[k] for v in cps.values())
-        row['pac_check_errors'] = status.get(f, {}).get('pac_check_errors', '')
+        # a file that failed this run still has its earlier report, so keep that report's count
+        now = status.get(f, {})
+        row['pac_check_errors'] = (now.get('pac_check_errors', '') if now.get('status') == 'ok'
+                                   else earlier.get(f, ''))
         rows.append(row)
     with open(csv_out, 'w', newline='', encoding='utf-8') as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
@@ -216,7 +230,12 @@ if __name__ == '__main__':
     if cmd == 'calibrate':
         sys.exit(cmd_calibrate(a[1], a[2]))
     if cmd == 'validate':
-        sys.exit(cmd_validate(a[1], a[2], a[3], a[4:]))
+        rest, reject = a[4:], None
+        if '--reject' in rest:
+            i = rest.index('--reject')
+            reject = rest[i + 1]
+            del rest[i:i + 2]
+        sys.exit(cmd_validate(a[1], a[2], a[3], rest, reject))
     if cmd == 'summarize':
         opt = lambda flag: a[a.index(flag) + 1] if flag in a else None
         sys.exit(cmd_summarize(a[1], a[2], opt('--status'), opt('--md')))

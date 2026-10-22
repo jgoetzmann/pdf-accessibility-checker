@@ -237,7 +237,7 @@ function Set-DialogFile($pac, $dlg, [string]$path) {
     # On these runners the Windows file dialogs expose their controls only as plain panes,
     # and an element id such as "1" can be a file in the list rather than the OK button.
     # So use the keyboard: Alt+N is the dialogs' own shortcut for the file-name box, the
-    # path is pasted (names like pre+2014_0063 hold characters SendKeys reads as
+    # path is pasted (names like report+v2 (final).pdf hold characters SendKeys reads as
     # modifiers), and Enter is OK.
     Set-Clipboard -Value $path
     [PacMouse]::Front([IntPtr]$dlg.Current.NativeWindowHandle)
